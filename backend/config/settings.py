@@ -132,7 +132,8 @@ CORS_ALLOWED_ORIGINS = [
 # e.g. CORS_ALLOWED_ORIGIN=https://your-app.vercel.app
 _vercel_origin = os.environ.get("CORS_ALLOWED_ORIGIN")
 if _vercel_origin:
-    CORS_ALLOWED_ORIGINS.append(_vercel_origin)
+    # django-cors-headers will crash if the origin has a trailing slash
+    CORS_ALLOWED_ORIGINS.append(_vercel_origin.rstrip("/"))
 
 # -------------------------------------------------------------------
 # Static files
