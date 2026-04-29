@@ -1,12 +1,14 @@
 /**
  * Axios API client.
- * All requests go through /api/v1/ — proxied to Django by Vite during dev.
+ *
+ * Local dev  → baseURL is '' so Vite proxy forwards /api → localhost:8000
+ * Production → set VITE_API_BASE_URL=https://your-app.onrender.com in Vercel
  */
 
 import axios from 'axios'
 
 const api = axios.create({
-  baseURL: '/api/v1',
+  baseURL: (import.meta.env.VITE_API_BASE_URL ?? '') + '/api/v1',
   headers: { 'Content-Type': 'application/json' },
 })
 

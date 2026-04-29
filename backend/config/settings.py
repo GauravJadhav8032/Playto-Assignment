@@ -19,6 +19,9 @@ SECRET_KEY = os.environ.get(
 )
 DEBUG = os.environ.get("DJANGO_DEBUG", "True") == "True"
 ALLOWED_HOSTS = os.environ.get("ALLOWED_HOSTS", "*").split(",")
+# Automatically allow Render's subdomain
+if not DEBUG:
+    ALLOWED_HOSTS += [".onrender.com"]
 
 # -------------------------------------------------------------------
 # Applications
@@ -116,11 +119,16 @@ Q_CLUSTER = {
 # -------------------------------------------------------------------
 # CORS — allow React dev server
 # -------------------------------------------------------------------
-CORS_ALLOW_ALL_ORIGINS = DEBUG  # restrict to specific origins in prod
+CORS_ALLOW_ALL_ORIGINS = DEBUG  # wide-open in dev only
 CORS_ALLOWED_ORIGINS = [
     "http://localhost:5173",
     "http://127.0.0.1:5173",
 ]
+# Add Vercel frontend URL in production via env var
+# e.g. CORS_ALLOWED_ORIGIN=https://your-app.vercel.app
+_vercel_origin = os.environ.get("CORS_ALLOWED_ORIGIN")
+if _vercel_origin:
+    CORS_ALLOWED_ORIGINS.append(_vercel_origin)
 
 # -------------------------------------------------------------------
 # Static files
