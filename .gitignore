@@ -1,0 +1,47 @@
+# ── Python ──────────────────────────────────────
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+*.pyc
+.Python
+*.egg-info/
+dist/
+build/
+
+# ── Virtual environment ──────────────────────────
+backend/venv/
+backend/.venv/
+venv/
+.venv/
+
+# ── Django ───────────────────────────────────────
+backend/db.sqlite3
+backend/*.sqlite3
+backend/staticfiles/
+backend/media/
+backend/.env
+backend/local_settings.py
+
+# ── Environment / Credentials (NEVER commit) ─────
+.env
+.env.*
+*.env
+secrets.json
+local_settings.py
+
+# ── Node / Frontend ──────────────────────────────
+frontend/node_modules/
+frontend/dist/
+frontend/.cache/
+
+# ── OS & Editor ──────────────────────────────────
+.DS_Store
+Thumbs.db
+*.swp
+*.swo
+.vscode/settings.json
+.idea/
+
+# ── Logs ─────────────────────────────────────────
+*.log

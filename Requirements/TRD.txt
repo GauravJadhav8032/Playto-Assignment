@@ -1,0 +1,225 @@
+📄 TECHNICAL REQUIREMENTS DOCUMENT (TRD)
+Product: Playto Payout Engine (Lean MVP, No Redis)
+1. 🎯 Technical Objective
+
+Implement a transaction-safe payout engine that guarantees:
+
+Strong data consistency (ACID)
+Race-condition prevention under concurrent requests
+Idempotent API execution
+Reliable async job processing (DB-backed queue)
+2. 🏗️ System Architecture
+2.1 Stack
+Layer	Technology
+Backend	Django + DRF
+Database	PostgreSQL
+Async Worker	Django-Q (ORM broker)
+Frontend	React + Tailwind
+2.2 Runtime Components
+[Client]
+   ↓
+[Django API - Gunicorn]
+   ↓
+[PostgreSQL]
+   ↓
+[Django-Q Worker Process]
+2.3 Process Separation
+Web server → handles API requests
+Worker process → handles payouts
+python manage.py runserver
+python manage.py qcluster
+3. 🗄️ Data Layer Design
+3.1 LedgerEntry Table
+CREATE TABLE ledger_entries (
+  id SERIAL PRIMARY KEY,
+  merchant_id INT NOT NULL,
+  type VARCHAR(10) CHECK (type IN ('CREDIT','DEBIT')),
+  amount_paise BIGINT NOT NULL,
+  reference TEXT,
+  created_at TIMESTAMP DEFAULT NOW()
+);
+3.2 Payout Table
+CREATE TABLE payouts (
+  id SERIAL PRIMARY KEY,
+  merchant_id INT NOT NULL,
+  amount_paise BIGINT NOT NULL,
+  status VARCHAR(20),
+  idempotency_key UUID,
+  attempts INT DEFAULT 0,
+  created_at TIMESTAMP,
+  updated_at TIMESTAMP
+);
+3.3 Idempotency Table
+CREATE TABLE idempotency_keys (
+  id SERIAL PRIMARY KEY,
+  merchant_id INT,
+  key UUID,
+  response JSONB,
+  created_at TIMESTAMP
+);
+3.4 Indexing Strategy
+CREATE INDEX idx_ledger_merchant ON ledger_entries(merchant_id);
+CREATE UNIQUE INDEX idx_idem_key ON idempotency_keys(merchant_id, key);
+CREATE INDEX idx_payout_status ON payouts(status);
+4. 🧠 Core Logic Design
+4.1 Balance Calculation (DB-Level)
+SELECT 
+COALESCE(SUM(CASE WHEN type='CREDIT' THEN amount_paise END),0) -
+COALESCE(SUM(CASE WHEN type='DEBIT' THEN amount_paise END),0)
+FROM ledger_entries
+WHERE merchant_id = %s;
+4.2 Transaction Boundary
+
+All payout creation must run inside:
+
+@transaction.atomic
+4.3 Concurrency Control
+Mechanism:
+Row-level locking
+LedgerEntry.objects.select_for_update().filter(merchant_id=merchant_id)
+Flow:
+Begin transaction
+Lock ledger rows
+Compute balance
+Validate amount
+Insert DEBIT entry
+Create payout
+Commit
+4.4 Idempotency Implementation
+Step Flow:
+1. Check idempotency_keys table
+2. If exists → return stored response
+3. Else:
+   - process request
+   - store response
+   - return response
+DB Constraint:
+UNIQUE (merchant_id, key)
+Edge Case Handling:
+If two requests arrive simultaneously:
+Unique constraint ensures only one insert succeeds
+Second request fetches stored response
+5. ⚙️ Payout Engine
+5.1 State Machine (Strict Enforcement)
+pending → processing → completed
+pending → processing → failed
+Validation Logic:
+if current_status == "completed":
+    raise Exception("Invalid transition")
+5.2 Async Job Execution
+Trigger:
+async_task("app.tasks.process_payout", payout_id)
+5.3 Worker Logic
+Function:
+def process_payout(payout_id):
+    payout = get_payout()
+
+    move_to_processing()
+
+    simulate_result()
+
+    if success:
+        mark_completed()
+    elif fail:
+        mark_failed()
+        refund()
+5.4 Simulation Logic
+random_number = random()
+
+if random_number < 0.7:
+    success
+elif random_number < 0.9:
+    failure
+else:
+    stuck
+6. 🔁 Retry System
+6.1 Retry Trigger
+Query payouts where:
+status = processing
+updated_at < now - 30 seconds
+6.2 Retry Algorithm
+if attempts < 3:
+    retry
+else:
+    mark_failed()
+    refund()
+6.3 Backoff Strategy
+delay = 2 ** attempts
+7. 💸 Refund Logic
+On Failure:
+create_ledger_entry(
+    type="CREDIT",
+    amount=payout.amount,
+    reference="refund"
+)
+Must be inside same transaction as status update
+8. 🌐 API Layer
+8.1 POST /payouts
+Steps:
+Validate input
+Check idempotency
+Run transaction
+Return response
+8.2 GET /dashboard
+Aggregations:
+available balance
+held balance
+Held Balance Query:
+SELECT SUM(amount_paise)
+FROM payouts
+WHERE status IN ('pending','processing')
+AND merchant_id = %s;
+9. 🧪 Testing Strategy
+9.1 Concurrency Test
+Use threading or parallel requests
+Validate:
+only one payout succeeds
+9.2 Idempotency Test
+Send same key twice
+Ensure:
+same response
+single DB record
+10. 🔐 Data Integrity Guarantees
+Must Always Hold:
+Balance = SUM(CREDITS) - SUM(DEBITS)
+Constraints:
+No floating point usage
+No manual balance storage
+11. 🚀 Deployment Architecture
+Components:
+Web Server (Django)
+Worker (Django-Q)
+Database (PostgreSQL)
+Startup:
+python manage.py migrate
+python manage.py runserver
+python manage.py qcluster
+12. ⚠️ Failure Handling
+Scenario	Handling
+Worker crash	Retry mechanism
+DB failure	Transaction rollback
+Duplicate request	Idempotency
+Race condition	Row locking
+13. 📊 Observability (Minimal)
+Logs:
+Payout created
+Payout processed
+Retry attempts
+14. 🧭 Tradeoff Decisions
+Why Django-Q (ORM)?
+No Redis required
+Simpler setup
+Meets async requirement
+Limitation:
+Lower scalability vs Celery
+Acknowledgment:
+
+Replace with Celery + Redis in production
+
+🔚 Final Technical Position
+
+This TRD ensures:
+
+Minimal infra footprint
+Full correctness under concurrency
+Alignment with real payment system principles
