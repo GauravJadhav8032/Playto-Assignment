@@ -8,7 +8,6 @@
 
 **Django ORM (services.py → `_compute_balance_db`)**
 
-
 ```python
 result = LedgerEntry.objects.filter(merchant_id=merchant_id).aggregate(
     total_credit=Coalesce(
@@ -220,7 +219,6 @@ def retry_payout(payout_id: int) -> None:
 ```
 
 Updated `retry_stuck_payouts` to call `retry_payout` instead:
-
 ```python
 async_task("app.tasks.retry_payout", payout.id)  # ← correct
 ```
