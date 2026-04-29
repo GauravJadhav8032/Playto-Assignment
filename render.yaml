@@ -1,5 +1,5 @@
 services:
-  # ── Web Service (Django API via Gunicorn) ──────────────────────────
+  # ── Web Service (Django API + Worker on Free Tier) ──────────────────────────
   - type: web
     name: payout-engine-api
     runtime: python
@@ -10,7 +10,7 @@ services:
       python manage.py migrate &&
       python manage.py seed_data &&
       python manage.py setup_schedules
-    startCommand: gunicorn config.wsgi:application --bind 0.0.0.0:$PORT --workers 2 --timeout 120
+    startCommand: bash start.sh
     envVars:
       - key: DJANGO_SETTINGS_MODULE
         value: config.settings
@@ -42,48 +42,6 @@ services:
           property: port
       - key: CORS_ALLOWED_ORIGIN
         value: ""  # Set to your Vercel URL after frontend deploys
-
-  # ── Background Worker (Django-Q qcluster) ─────────────────────────
-  - type: worker
-    name: payout-engine-worker
-    runtime: python
-    rootDir: backend
-    buildCommand: >
-      pip install -r requirements.txt &&
-      python manage.py collectstatic --noinput
-    startCommand: python start_worker.py
-    envVars:
-      - key: DJANGO_SETTINGS_MODULE
-        value: config.settings
-      - key: DJANGO_DEBUG
-        value: "False"
-      - key: DJANGO_SECRET_KEY
-        fromService:
-          name: payout-engine-api
-          type: web
-          envVarKey: DJANGO_SECRET_KEY
-      - key: USE_SQLITE
-        value: "0"
-      - key: DB_NAME
-        fromDatabase:
-          name: payout-engine-db
-          property: database
-      - key: DB_USER
-        fromDatabase:
-          name: payout-engine-db
-          property: user
-      - key: DB_PASSWORD
-        fromDatabase:
-          name: payout-engine-db
-          property: password
-      - key: DB_HOST
-        fromDatabase:
-          name: payout-engine-db
-          property: host
-      - key: DB_PORT
-        fromDatabase:
-          name: payout-engine-db
-          property: port
 
 # ── PostgreSQL Database ──────────────────────────────────────────────
 databases:
