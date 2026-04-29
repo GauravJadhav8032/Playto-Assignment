@@ -12,10 +12,12 @@ services:
       python manage.py setup_schedules
     startCommand: gunicorn config.wsgi:application --bind 0.0.0.0:$PORT --workers 2 --timeout 120
     envVars:
+      - key: DJANGO_SETTINGS_MODULE
+        value: config.settings
       - key: DJANGO_DEBUG
         value: "False"
       - key: DJANGO_SECRET_KEY
-        generateValue: true        # Render auto-generates a secure value
+        generateValue: true
       - key: USE_SQLITE
         value: "0"
       - key: DB_NAME
@@ -39,16 +41,20 @@ services:
           name: payout-engine-db
           property: port
       - key: CORS_ALLOWED_ORIGIN
-        value: ""    # Set to your Vercel URL after frontend deploys
+        value: ""  # Set to your Vercel URL after frontend deploys
 
   # ── Background Worker (Django-Q qcluster) ─────────────────────────
   - type: worker
     name: payout-engine-worker
     runtime: python
     rootDir: backend
-    buildCommand: pip install -r requirements.txt
+    buildCommand: >
+      pip install -r requirements.txt &&
+      python manage.py collectstatic --noinput
     startCommand: python manage.py qcluster
     envVars:
+      - key: DJANGO_SETTINGS_MODULE
+        value: config.settings
       - key: DJANGO_DEBUG
         value: "False"
       - key: DJANGO_SECRET_KEY

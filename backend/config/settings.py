@@ -23,6 +23,9 @@ ALLOWED_HOSTS = os.environ.get("ALLOWED_HOSTS", "*").split(",")
 if not DEBUG:
     ALLOWED_HOSTS += [".onrender.com"]
 
+os.environ.setdefault("DJANGO_SETTINGS_MODULE", "config.settings")
+
+
 # -------------------------------------------------------------------
 # Applications
 # -------------------------------------------------------------------
@@ -136,7 +139,9 @@ if _vercel_origin:
 # -------------------------------------------------------------------
 STATIC_URL = "static/"
 STATIC_ROOT = BASE_DIR / "staticfiles"
-STATICFILES_STORAGE = "whitenoise.storage.CompressedManifestStaticFilesStorage"
+# CompressedStaticFilesStorage (no manifest) — safe for both web and worker services.
+# ManifestStaticFilesStorage requires collectstatic output which the worker build skips.
+STATICFILES_STORAGE = "whitenoise.storage.CompressedStaticFilesStorage"
 
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 
