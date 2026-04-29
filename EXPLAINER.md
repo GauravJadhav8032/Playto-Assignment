@@ -8,6 +8,7 @@
 
 **Django ORM (services.py → `_compute_balance_db`)**
 
+
 ```python
 result = LedgerEntry.objects.filter(merchant_id=merchant_id).aggregate(
     total_credit=Coalesce(
